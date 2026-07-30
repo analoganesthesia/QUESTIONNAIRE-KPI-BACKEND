@@ -314,14 +314,6 @@ def export(key: str = Query(...), db=Depends(get_db)):
             return "n/d"
         return f"+{pct} %" if pct >= 0 else f"{pct} %"
 
-    # Moyennes des 6 facettes du Bloc 3, avant / après (toutes soumissions, non appariées)
-    dim_avant, dim_apres = {}, {}
-    for key in scoring.BLOC3_DIMENSIONS:
-        vals_a = [scoring.bloc3_dimensions(json.loads(r.answers_json), "av_")[key] for r in medecin_avant]
-        vals_b = [scoring.bloc3_dimensions(json.loads(r.answers_json), "ap_")[key] for r in medecin_apres]
-        dim_avant[key] = _avg(vals_a)
-        dim_apres[key] = _avg(vals_b)
-
     sus_pct = _pct_change(sus_avant, sus_apres)
     nasa_pct = _pct_change(nasa_avant, nasa_apres)  # négatif = charge réduite = amélioration
     bloc3_pct = _pct_change(bloc3_avant, bloc3_apres)
@@ -473,7 +465,7 @@ def export(key: str = Query(...), db=Depends(get_db)):
         ))
     if satisfaction_patient is not None:
         bullets.append((
-            f"Satisfaction patient moyenne : {satisfaction_patient}/100 (n={len(patient_rows)} patient(s))",
+            f"Satisfaction patient moyenne : {str(satisfaction_patient).replace('.', ',')} % (n={len(patient_rows)} patient(s))",
             C_PATIENT,
         ))
 
@@ -483,30 +475,6 @@ def export(key: str = Query(...), db=Depends(get_db)):
         cell.font = Font(bold=True, size=12, color=color)
         ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=10)
         r += 1
-
-    r += 1
-    ws.cell(row=r, column=1, value="Détail du Bloc 3 par facette du logiciel").font = Font(bold=True, size=12, color=C_ID)
-    r += 1
-    dim_header_row = r
-    dim_headers = ["Facette", "Avant (/100)", "Après (/100)", "Différentiel"]
-    for i, h in enumerate(dim_headers):
-        _styled_header(ws, dim_header_row, i + 1, h, C_BLOC3)
-    ws.row_dimensions[dim_header_row].height = 22
-    r += 1
-    dim_data_start = r
-    for key, (_s, _e, label) in scoring.BLOC3_DIMENSIONS.items():
-        a, b = dim_avant[key], dim_apres[key]
-        pct = _pct_change(a, b)
-        ws.cell(row=r, column=1, value=label)
-        ws.cell(row=r, column=2, value=a)
-        ws.cell(row=r, column=3, value=b)
-        ws.cell(row=r, column=4, value=_fmt_pct(pct) if pct is not None else "n/d")
-        r += 1
-    ref = f"A{dim_header_row}:D{r - 1}"
-    table3 = Table(displayName="ResumeBloc3Facettes", ref=ref)
-    table3.tableStyleInfo = TableStyleInfo(name="TableStyleMedium9", showRowStripes=True)
-    ws.add_table(table3)
-    ws.column_dimensions["A"].width = 46
 
     r += 2
     ws.cell(row=r, column=1,
