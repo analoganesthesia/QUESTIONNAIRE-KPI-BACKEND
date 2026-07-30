@@ -494,6 +494,7 @@ def export(key: str = Query(...), db=Depends(get_db)):
     FILL_OUI = "FBE2E2"        # surbrillance si un incident est déclaré "Oui"
 
     med_col_defs = [
+        ("Date de soumission", C_IDENTITE),
         ("Identifiant", C_IDENTITE),
         ("Âge", C_IDENTITE),
         ("Centre", C_IDENTITE),
@@ -507,8 +508,12 @@ def export(key: str = Query(...), db=Depends(get_db)):
         ("Situation à risque — T1 (Q20)", C_INCIDENT),
         ("Retour libre (Q21 T0 / Q22 T1)", C_TXT),
     ]
+    MED_CENTER_ALIGN = Alignment(horizontal="center", vertical="center", wrap_text=True)
     for i, (h, color) in enumerate(med_col_defs):
-        _styled_header(ws, 1, i + 1, h, color)
+        cell = ws.cell(row=1, column=i + 1, value=h)
+        cell.fill = PatternFill(start_color=color, end_color=color, fill_type="solid")
+        cell.font = HEADER_FONT
+        cell.alignment = MED_CENTER_ALIGN
     ws.row_dimensions[1].height = 30
 
     def _oui_non(v):
@@ -545,6 +550,7 @@ def export(key: str = Query(...), db=Depends(get_db)):
             retour_libre = a.get("ap_txt_q22")
 
         values = [
+            row.submitted_at.strftime("%d/%m/%Y %H:%M") if row.submitted_at else None,
             row.medecin_id, _num(row.age), row.centre, row.logiciel_actuel, row.timepoint,
             sus_v, nasa_v, bloc3_v,
             problemes_t0, dysfonctionnement_t1, risque_t1, retour_libre,
@@ -555,11 +561,11 @@ def export(key: str = Query(...), db=Depends(get_db)):
             cell.fill = PatternFill(start_color=row_fill, end_color=row_fill, fill_type="solid")
         # Surbrillance rouge si un incident est déclaré "Oui" (sécurité — visible immédiatement)
         if dysfonctionnement_t1 == "Oui":
-            ws.cell(row=r, column=10).fill = PatternFill(start_color=FILL_OUI, end_color=FILL_OUI, fill_type="solid")
-            ws.cell(row=r, column=10).font = Font(bold=True, color=C_INCIDENT)
-        if risque_t1 == "Oui":
             ws.cell(row=r, column=11).fill = PatternFill(start_color=FILL_OUI, end_color=FILL_OUI, fill_type="solid")
             ws.cell(row=r, column=11).font = Font(bold=True, color=C_INCIDENT)
+        if risque_t1 == "Oui":
+            ws.cell(row=r, column=12).fill = PatternFill(start_color=FILL_OUI, end_color=FILL_OUI, fill_type="solid")
+            ws.cell(row=r, column=12).font = Font(bold=True, color=C_INCIDENT)
         r += 1
 
     n_data_rows = r - 2
