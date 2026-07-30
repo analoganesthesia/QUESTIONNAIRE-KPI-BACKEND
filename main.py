@@ -574,22 +574,38 @@ def export(key: str = Query(...), db=Depends(get_db)):
     # FEUILLE 3 — SCORES PATIENT
     # ---------------------------------------------------------------
     ws = wb.create_sheet("Scores patient")
-    headers = [
-        "Centre", "Âge", "Type d'intervention", "Mode de prise en charge", "Support utilisé",
-        "Score global (/100)", "Accès & espace patient (/100)", "Préconsultation (/100)",
-        "Fonctionnement technique (/100)", "Impression globale (/100)", "Date de soumission",
+
+    C_LIGHT = "8EA6D9"   # bleu clair — colonnes de contexte
+    C_SCORE = "26215C"   # violet ANALOG — colonne clé (score)
+    C_COMMENT = "3B5998"  # bleu moyen — commentaire libre
+
+    patient_col_defs = [
+        ("Date de soumission", C_LIGHT),
+        ("Âge", C_LIGHT),
+        ("Centre", C_LIGHT),
+        ("Type d'intervention", C_LIGHT),
+        ("Mode de prise en charge", C_LIGHT),
+        ("Support utilisé", C_LIGHT),
+        ("Score de Satisfaction global (%)", C_SCORE),
+        ("Commentaire libre", C_COMMENT),
     ]
-    ws.append(headers)
-    _style_header_row(ws, 1, len(headers))
+    CENTER_ALIGN = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    for i, (h, color) in enumerate(patient_col_defs):
+        cell = ws.cell(row=1, column=i + 1, value=h)
+        cell.fill = PatternFill(start_color=color, end_color=color, fill_type="solid")
+        cell.font = HEADER_FONT
+        cell.alignment = CENTER_ALIGN
+    ws.row_dimensions[1].height = 30
+
     for r in patient_rows:
         answers = json.loads(r.answers_json)
-        score, dims = scoring.patient_score(answers)
+        score, _dims = scoring.patient_score(answers)
         ws.append([
-            r.centre, _num(r.age), r.type_intervention, r.mode_prise_charge, r.support, score,
-            dims["acces_espace_patient"], dims["preconsultation"], dims["technique"], dims["impression_globale"],
             r.submitted_at.strftime("%d/%m/%Y %H:%M") if r.submitted_at else None,
+            _num(r.age), r.centre, r.type_intervention, r.mode_prise_charge, r.support,
+            score, answers.get("txt_q15"),
         ])
-    _add_table(ws, len(patient_rows), len(headers), "ScoresPatient")
+    _add_table(ws, len(patient_rows), len(patient_col_defs), "ScoresPatient")
     _autosize(ws)
 
     # ---------------------------------------------------------------
